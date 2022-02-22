@@ -319,6 +319,7 @@ impl AssetServer {
         // load the asset source using the corresponding AssetLoader
         let mut load_context = LoadContext::new(
             asset_path.path(),
+            &asset_path,
             &self.server.asset_ref_counter.channel,
             &*self.server.asset_io,
             version,

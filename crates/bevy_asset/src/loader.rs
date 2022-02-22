@@ -83,6 +83,7 @@ pub struct LoadContext<'a> {
     pub(crate) asset_io: &'a dyn AssetIo,
     pub(crate) labeled_assets: HashMap<Option<String>, BoxedLoadedAsset>,
     pub(crate) path: &'a Path,
+    pub(crate) asset_path: &'a AssetPath<'a>,
     pub(crate) version: usize,
     pub(crate) task_pool: &'a TaskPool,
 }
@@ -90,6 +91,7 @@ pub struct LoadContext<'a> {
 impl<'a> LoadContext<'a> {
     pub(crate) fn new(
         path: &'a Path,
+        asset_path: &'a AssetPath,
         ref_change_channel: &'a RefChangeChannel,
         asset_io: &'a dyn AssetIo,
         version: usize,
@@ -101,12 +103,17 @@ impl<'a> LoadContext<'a> {
             labeled_assets: Default::default(),
             version,
             path,
+            asset_path,
             task_pool,
         }
     }
 
     pub fn path(&self) -> &Path {
         self.path
+    }
+
+    pub fn asset_path(&self) -> &AssetPath {
+        self.asset_path
     }
 
     pub fn has_labeled_asset(&self, label: &str) -> bool {
