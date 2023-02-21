@@ -1,5 +1,5 @@
 use crate::{
-    path::{AssetPath, AssetPathId, SourcePathId},
+    path::{AssetPath, AssetPathId},
     Asset, AssetIo, AssetIoError, AssetLifecycle, AssetLifecycleChannel, AssetLifecycleEvent,
     AssetLoader, Assets, Handle, HandleId, HandleUntyped, LabelId, LoadContext, LoadState,
     RefChange, RefChangeChannel, SourceInfo, SourceMeta,
@@ -68,7 +68,7 @@ pub(crate) struct AssetRefCounter {
 pub struct AssetServerInternal {
     pub(crate) asset_io: Box<dyn AssetIo>,
     pub(crate) asset_ref_counter: AssetRefCounter,
-    pub(crate) asset_sources: Arc<RwLock<HashMap<SourcePathId, SourceInfo>>>,
+    pub(crate) asset_sources: Arc<RwLock<HashMap<AssetPathId, SourceInfo>>>,
     pub(crate) asset_lifecycles: Arc<RwLock<HashMap<Uuid, Box<dyn AssetLifecycle>>>>,
     loaders: RwLock<Vec<Arc<dyn AssetLoader>>>,
     extension_to_loader_index: RwLock<HashMap<String, usize>>,
@@ -245,7 +245,7 @@ impl AssetServer {
             HandleId::AssetPathId(id) => {
                 let asset_sources = self.server.asset_sources.read();
                 asset_sources
-                    .get(&id.source_path_id())
+                    .get(&id)
                     .map_or(LoadState::NotLoaded, |info| info.load_state)
             }
             HandleId::Id(_, _) => LoadState::NotLoaded,
@@ -315,7 +315,7 @@ impl AssetServer {
         // locks before loading
         let version = {
             let mut asset_sources = self.server.asset_sources.write();
-            let source_info = match asset_sources.entry(asset_path_id.source_path_id()) {
+            let source_info = match asset_sources.entry(asset_path_id) {
                 Entry::Occupied(entry) => entry.into_mut(),
                 Entry::Vacant(entry) => entry.insert(SourceInfo {
                     asset_types: Default::default(),
@@ -347,7 +347,7 @@ impl AssetServer {
         let set_asset_failed = || {
             let mut asset_sources = self.server.asset_sources.write();
             let source_info = asset_sources
-                .get_mut(&asset_path_id.source_path_id())
+                .get_mut(&asset_path_id)
                 .expect("`AssetSource` should exist at this point.");
             source_info.load_state = LoadState::Failed;
         };
@@ -373,6 +373,7 @@ impl AssetServer {
         // load the asset source using the corresponding AssetLoader
         let mut load_context = LoadContext::new(
             asset_path.path(),
+            &asset_path,
             &self.server.asset_ref_counter.channel,
             self.asset_io(),
             version,
@@ -391,7 +392,7 @@ impl AssetServer {
         // version being loaded
         let mut asset_sources = self.server.asset_sources.write();
         let source_info = asset_sources
-            .get_mut(&asset_path_id.source_path_id())
+            .get_mut(&asset_path_id)
             .expect("`AssetSource` should exist at this point.");
         if version != source_info.version {
             return Ok(asset_path_id);
@@ -516,7 +517,7 @@ impl AssetServer {
                     let type_uuid = match potential_free {
                         HandleId::Id(type_uuid, _) => Some(type_uuid),
                         HandleId::AssetPathId(id) => asset_sources
-                            .get(&id.source_path_id())
+                            .get(&id)
                             .and_then(|source_info| source_info.get_asset_type(id.label_id())),
                     };
 
@@ -598,7 +599,7 @@ impl AssetServer {
                     if let HandleId::AssetPathId(id) = result.id {
                         let asset_sources = asset_sources_guard
                             .get_or_insert_with(|| self.server.asset_sources.write());
-                        if let Some(source_info) = asset_sources.get_mut(&id.source_path_id()) {
+                        if let Some(source_info) = asset_sources.get_mut(&id) {
                             if source_info.version == result.version {
                                 source_info.committed_assets.insert(id.label_id());
                                 if source_info.is_loaded() {
@@ -614,7 +615,7 @@ impl AssetServer {
                     if let HandleId::AssetPathId(id) = handle_id {
                         let asset_sources = asset_sources_guard
                             .get_or_insert_with(|| self.server.asset_sources.write());
-                        if let Some(source_info) = asset_sources.get_mut(&id.source_path_id()) {
+                        if let Some(source_info) = asset_sources.get_mut(&id) {
                             source_info.committed_assets.remove(&id.label_id());
                             source_info.load_state = LoadState::Unloaded;
                         }

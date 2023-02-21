@@ -124,12 +124,14 @@ pub struct LoadContext<'a> {
     pub(crate) asset_io: &'a dyn AssetIo,
     pub(crate) labeled_assets: HashMap<Option<String>, BoxedLoadedAsset>,
     pub(crate) path: &'a Path,
+    pub(crate) asset_path: &'a AssetPath<'a>,
     pub(crate) version: usize,
 }
 
 impl<'a> LoadContext<'a> {
     pub(crate) fn new(
         path: &'a Path,
+        asset_path: &'a AssetPath,
         ref_change_channel: &'a RefChangeChannel,
         asset_io: &'a dyn AssetIo,
         version: usize,
@@ -137,6 +139,7 @@ impl<'a> LoadContext<'a> {
         Self {
             ref_change_channel,
             asset_io,
+            asset_path,
             labeled_assets: Default::default(),
             version,
             path,
@@ -146,6 +149,11 @@ impl<'a> LoadContext<'a> {
     /// Gets the source path for this load context.
     pub fn path(&self) -> &Path {
         self.path
+    }
+
+    /// Gets the asset path for this load context.
+    pub fn asset_path(&self) -> &AssetPath {
+        self.asset_path
     }
 
     /// Returns `true` if the load context contains an asset with the specified label.
